@@ -64,6 +64,26 @@ function rhCount(){const r=FE_RHYTHMS.map(x=>rhState(x.id));return{seen:r.filter
 // Home: one line that opens the floor layer.
 function floorHomeCard(){const c=rhCount();return `<button class="fl-homecard" data-go="floor"><span class="fl-hc-ic">${I("activity",22)}</span><span><b>Floor: tele, meds and live cases</b><small>${c.due?`${c.due} rhythm${c.due>1?"s":""} due · `:""}Monitor, strips, calipers, cardiac meds, simulation with SBAR and MAR</small></span>${I("arrow",17)}</button>`}
 
+// ---------------------------------------------------------------- build status pop-up
+// Tells Derek what this release contains and exactly what to ask Claude for next. Shows once per release; the hub card reopens it.
+const FLOOR_BUILD={v:"1.0",date:"2026-11-25",done:["Telemetry trainer: live monitor, 19 rhythms, strips, calipers, confidence drill","14 cardiac floor med cards","Case 1: new AFib with RVR after a hip replacement (SBAR, MAR, SOAP)","CCRN module map (modules 0–12) linked to the ICU Atlas lessons"],
+ next:[
+  {k:"1.1",t:"Cardiac cases",d:"Chest pain → STEMI alert, heart failure flare, symptomatic brady on a beta blocker, hypertensive urgency vs emergency, post-cath groin bleed.",ask:"Build ICU Atlas Floor 1.1: the five module 2 cardiac cases in claude/icu-atlas-handoff.md, same sim engine, scored and debriefed."},
+  {k:"1.2",t:"Labs reader + 12-lead",d:"BMP/CMP, CBC, troponin trend, BNP, INR/aPTT/anti-Xa, lactate, ABG in an Epic-style results view; 12-lead basics and STEMI territories.",ask:"Build ICU Atlas Floor 1.2: labs reader and 12-lead/STEMI per claude/icu-atlas-floor-plan.md (T7 and module 2)."},
+  {k:"1.3",t:"Plum 360 + Philips alarms",d:"Pump simulator (primary, piggyback, concurrent, titration, alarms) and exact Philips alarm text. Needs the Gemini reference pack first.",ask:"Build ICU Atlas Floor 1.3: Plum 360 simulator and Philips alarm text from the attached icu_atlas_reference_pack.json."},
+  {k:"1.4",t:"Orientation shift + art",d:"Module 0 five-patient start-of-shift sim with prioritizing; swap in the ChatGPT illustration set.",ask:"Build ICU Atlas Floor 1.4: module 0 orientation shift sim and drop in the attached illustration set."},
+  {k:"2.x",t:"Modules 3–12",d:"Floor tools and cases for respiratory, multisystem, neuro, GI, renal, endocrine, heme, ortho/skin, behavioral and professional practice, one module per release.",ask:"Build the next ICU Atlas Floor module in CCRN order per claude/icu-atlas-floor-plan.md."}]};
+function flStatus(open=true){const seen=(()=>{try{return localStorage.getItem("fl-build")}catch{return null}})();if(!open&&seen===FLOOR_BUILD.v)return;
+ const n=FLOOR_BUILD.next[0];const box=document.createElement("div");box.className="fl-pop";box.setAttribute("role","dialog");box.setAttribute("aria-modal","true");
+ box.innerHTML=`<div class="fl-popin"><span class="kicker">FLOOR ${FLOOR_BUILD.v} · BUILD STATUS</span><h2>Not everything is in yet</h2><p>This release has:</p><ul>${FLOOR_BUILD.done.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>
+  <div class="fl-popnext"><b>Ask Claude for next: Floor ${n.k} · ${esc(n.t)}</b><p>${esc(n.d)}</p><button class="btn mint" data-flp="copy">Copy the request</button></div>
+  <details><summary>Everything still to come</summary>${FLOOR_BUILD.next.map(x=>`<p><b>${x.k} · ${esc(x.t)}.</b> ${esc(x.d)}</p>`).join("")}</details>
+  <p class="fl-note">Images and the reference pack come from ChatGPT and Gemini (briefs in your Project: claude/icu-atlas-ai-briefs.md). Bring their output back with the 1.3 or 1.4 request.</p>
+  <div class="fl-row"><button class="btn" data-flp="close">Got it</button></div></div>`;
+ document.body.appendChild(box);const close=()=>{try{localStorage.setItem("fl-build",FLOOR_BUILD.v)}catch{}box.remove()};
+ box.addEventListener("click",e=>{const t=e.target.closest("[data-flp]");if(e.target===box||t?.dataset.flp==="close")close();if(t?.dataset.flp==="copy"){const txt=n.ask;(navigator.clipboard?.writeText(txt)||Promise.reject()).then(()=>t.textContent="Copied ✓").catch(()=>prompt("Copy this",txt))}});
+ box.querySelector("[data-flp=close]").focus({preventScroll:true})}
+
 // ---------------------------------------------------------------- pages
 function floorPage(p){const [,a,b]=p.split("/");
  if(!a)return flHub();if(a==="m")return flModule(b);if(a==="tele")return flTele();if(a==="r")return flRhythm(b);if(a==="drill")return flDrill();if(a==="cal")return flCal();
@@ -74,7 +94,7 @@ function flHub(){
  `<div class="fl-hero"><section class="fl-shift"><span class="fl-tag">${I("clock",14)} 2 MINUTES BETWEEN PATIENTS</span><h2>${c.due?`${c.due} rhythm${c.due>1?"s":""} due for review`:c.seen?"Keep the rhythms sharp":"Start with the rhythms"}</h2><p>Six-second strips, one at a time. Say how sure you are before you answer: the misses you were sure about are the ones that matter.</p>
   <div class="fl-row">${flBtn("floor/drill",`Rhythm drill ${I("arrow",15)}`,"btn mint")}${flBtn("floor/cal","Calipers","btn ghostbtn")}</div></section>
   <button class="fl-case" data-go="floor/sim/${sc.id}"><span class="fl-tag">${I("case",14)} SIMULATION · ${esc(sc.mins)}</span><h2>${esc(sc.title)}</h2><p>${esc(sc.unit)}. Live monitor, Epic-style chart, page the hospitalist, give the med, chart it.</p><span class="fl-meta">${done?`Best ${done[1]}% · ${done[0]} run${done[0]>1?"s":""}`:"Not run yet"}</span></button></div>`+
- `<div class="fl-stats">${[["Rhythms seen",`${c.seen}/${FE_RHYTHMS.length}`],["Retained",c.strong],["Due now",c.due],["Overconfident misses",oc==null?"—":oc+"%"]].map(([k,v])=>`<div><small>${k}</small><b>${v}</b></div>`).join("")}</div>`+
+ `<button class="fl-statuscard" data-fl="status"><span class="kicker">BUILD STATUS · FLOOR ${FLOOR_BUILD.v}</span><b>Next to ask for: Floor ${FLOOR_BUILD.next[0].k} · ${esc(FLOOR_BUILD.next[0].t)}</b>${I("arrow",15)}</button><div class="fl-stats">${[["Rhythms seen",`${c.seen}/${FE_RHYTHMS.length}`],["Retained",c.strong],["Due now",c.due],["Overconfident misses",oc==null?"—":oc+"%"]].map(([k,v])=>`<div><small>${k}</small><b>${v}</b></div>`).join("")}</div>`+
  section("Telemetry & ECG","Every rhythm on a live monitor and a measurable strip","Open the trainer","floor/tele")+
  `<div class="fl-tools">${tool("Live monitor + rhythm library","19 rhythms, cell to strip to action","activity","floor/tele")}${tool("Cardiac floor meds",`${FM_MEDS.length} cards with hold parameters`,"clipboard","floor/meds")}${tool("Simulation cases",`${FS_SCEN.length} case${FS_SCEN.length>1?"s":""} · more each module`,"case","floor/sims")}</div>`+
  section("CCRN path","Modules in the order you'd train, weighted to AACN's current Adult CCRN test plan")+
@@ -190,6 +210,7 @@ function simGo(s,i){const S=FL.sim,n=s.nodes[S.node],c=n.choices[i];S.pts+=c.p;S
 
 // ---------------------------------------------------------------- mount + events
 function floorMounted(p){const [,a,b]=p.split("/");
+ if(!a&&!document.querySelector(".fl-pop"))flStatus(false);
  if(a==="tele")feMonitorStart("fmon",{rhythm:FL.monR||"afrvr",spo2:95,nbp:[124,78],nbpTime:"q15",rr:16,temp:36.9});
  if(a==="r"){const r=feById(b);if(r)feMonitorStart("fmon",{rhythm:b,seed:FL.rhSeed[b],spo2:["vf","asys"].includes(b)?null:96,nbp:["vf","asys"].includes(b)?null:[118,72],rr:16,temp:37})}
  if(a==="sim"){const s=fsById(b),S=FL.sim;if(s&&S){const n=s.nodes[S.node];if(n&&n.mon){const m={...n.mon};if(n.kind==="mar"&&S.mar.checks.bp){m.nbp=s.mar.bpNow;m.nbpTime="now"}feMonitorStart("fmon",m)}}}
@@ -197,6 +218,7 @@ function floorMounted(p){const [,a,b]=p.split("/");
 }
 document.addEventListener("click",e=>{const b=e.target.closest("[data-fl]");if(!b||b.disabled||b.tagName==="SELECT"||b.tagName==="TEXTAREA"||(b.tagName==="INPUT"&&b.type!=="checkbox"))return;const k=b.dataset.fl,v=b.dataset.v;
  const sim=FL.sim&&fsById(FL.sim.id),rer=()=>{const y=scrollY;render();scrollTo(0,y)};
+ if(k==="status"){flStatus(true);return}
  if(k==="newStrip"){FL.rhSeed[b.dataset.id]=Math.floor(Math.random()*1e9);rer();return}
  if(k==="conf"){FL.drill.item.conf=+v;rer();return}
  if(k==="rans"){const it=FL.drill.item;it.ans=v;const ok=v===it.id;FL.drill.n++;if(ok)FL.drill.right++;rhRecord(it.id,ok,it.conf);rer();return}

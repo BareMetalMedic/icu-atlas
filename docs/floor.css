@@ -104,3 +104,11 @@ body.still .fe-alarm{animation:none}
  .fl-chart{position:static}.fe-mon{grid-template-columns:1fr 38%}.fe-alarm{right:38%}.fe-num .tp{display:none}.fe-num{grid-template-rows:1.4fr 1.1fr 1fr .8fr}
  .fl-crit{grid-template-columns:96px 1fr}
 }
+
+/* build status */
+.fl-pop{position:fixed;inset:0;z-index:60;background:#0b1626b3;display:grid;place-items:center;padding:16px}
+.fl-popin{background:#fff;border-radius:16px;max-width:560px;width:100%;max-height:88vh;overflow:auto;padding:22px;box-shadow:0 20px 60px #0008}
+.fl-popin h2{margin:4px 0 8px}.fl-popin ul{padding-left:20px;line-height:1.6}.fl-popin details{margin:12px 0}.fl-popin summary{cursor:pointer;font-weight:650;color:var(--teal)}
+.fl-popnext{background:#f2fbf7;border:1px solid #bfe3d6;border-radius:12px;padding:14px;margin:12px 0}.fl-popnext p{margin:6px 0 10px}
+.fl-statuscard{display:flex;flex-wrap:wrap;gap:4px 10px;align-items:center;width:100%;text-align:left;background:#fffaf0;border:1px solid #f0d9a8;border-radius:12px;padding:12px 14px;margin:0 0 12px}
+.fl-statuscard .kicker{width:100%;color:#8a5a00}.fl-statuscard svg{margin-left:auto}
