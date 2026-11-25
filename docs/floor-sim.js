@@ -1,0 +1,73 @@
+/* Floor: simulation scenarios. A scenario is a small state machine. Each node sets the bedside monitor, tells you what
+   you find, and asks for a decision. Node kinds: choice · sbar (build the call, the provider answers from what you sent)
+   · mar (give the med: scan, check, calculate, push) · note (write it, then compare to the key) · end.
+   Patients, names and numbers are invented for teaching. */
+const FS_SCEN=[
+{id:"afrvr-thr",title:"New AFib with RVR after a hip replacement",unit:"Ortho / tele · night shift",mins:"12–15 min",tags:["afrvr","dilt","metop","kcl","mag"],
+ pt:{name:"Dale Harmon",age:71,sex:"M",wt:84,room:"412",code:"Full code",allergy:"NKDA",dx:"POD 2, right total hip arthroplasty (posterior approach)",hx:"Hypertension, obstructive sleep apnea, osteoarthritis",home:"Metoprolol succinate 50 mg daily, lisinopril 20 mg daily",
+  report:"Pain 3/10 on scheduled acetaminophen and PRN oxycodone. Walked to the door with PT. Hip dressing dry. On enoxaparin 30 mg every 12 h. Voiding. Tele was sinus 70s–80s all day."},
+ labs:[["K","3.3","3.5–5.0","L"],["Mg","1.6","1.7–2.2","L"],["Hgb","10.1","13.5–17.5","L"],["Cr","1.0","0.7–1.3",""],["Glucose","132","70–99","H"]],
+ vitals:[["2000","82","124/76","16","97% RA","36.9"],["0000","88","118/72","16","96% RA","37.1"]],
+ mar:[["Acetaminophen 1,000 mg PO every 6 h","Scheduled","Given 0000"],["Enoxaparin 30 mg SC every 12 h","Scheduled","Due 0900"],["Oxycodone 5 mg PO every 4 h PRN pain","PRN","Last 2200"],["Lisinopril 20 mg PO daily","Scheduled","Given 0900"],["Metoprolol succinate 50 mg PO daily","Not ordered","Held for surgery, not resumed"]],
+ start:"n0",
+ nodes:{
+  n0:{mon:{rhythm:"afrvr",seed:41,hr:146,spo2:94,rr:20,temp:37.3,alarm:{level:"yellow",text:"** AFIB   HR 146"}},
+   say:"0310. The monitor tech calls: \"Room 412 converted to AFib, rate 140s, about two minutes ago.\" You're in 408 finishing a med pass.",
+   ask:"What do you do first?",
+   choices:[
+    {t:"Finish the 408 med safely, then go straight to 412 and look at the patient",go:"n1",p:2,fb:"Right: the first data point is the patient. A rhythm change doesn't tell you if he's stable."},
+    {t:"Call the hospitalist now from the hallway with the rhythm and rate",go:"n1",p:-1,fb:"The first thing you'll be asked is BP and symptoms. Get to the bedside first so your call has the answers."},
+    {t:"Ask the tech to keep an eye on it and finish your whole med pass first",go:"n0b",p:-3,fb:"A new rhythm with a rate in the 140s needs eyes on the patient now. Delay is how a stable patient becomes an unstable one."}]},
+  n0b:{mon:{rhythm:"afrvr",seed:44,hr:158,spo2:92,rr:22,temp:37.3,alarm:{level:"yellow",text:"** AFIB   HR 158"}},
+   say:"0325. The tech calls again: rate up to the 150s and he's on the call light.",ask:"Now?",
+   choices:[{t:"Go to 412 now",go:"n1",p:0,fb:"Go. Fifteen minutes lost."}]},
+  n1:{mon:{rhythm:"afrvr",seed:41,hr:148,spo2:93,nbp:[112,68],nbpTime:"0313",rr:20,temp:37.3,alarm:{level:"yellow",text:"** AFIB   HR 148"}},
+   say:"He's sitting up, awake, alert and oriented ×4. \"My heart's fluttering and I'm a little short of breath.\" No chest pain. Skin warm and dry. Lungs clear. You cycle the BP: 112/68.",
+   ask:"Stable or unstable?",
+   choices:[
+    {t:"Stable: no hypotension, no altered mental status, no shock signs, no ischemic chest pain, no acute heart failure",go:"n2",p:2,fb:"Correct. Those five are the AHA tachyarrhythmia criteria for 'unstable'. He has none, so this is the stable branch: workup and rate control by order."},
+    {t:"Unstable: HR over 140 means synchronized cardioversion",go:"n2",p:-2,fb:"Rate alone doesn't make him unstable. The question is whether the rhythm is causing hypotension, altered mental status, shock, ischemic chest pain or acute HF. It isn't (yet)."}]},
+  n2:{mon:{rhythm:"afrvr",seed:42,hr:146,spo2:93,nbp:[112,68],nbpTime:"0313",rr:20,temp:37.3,alarm:{level:"yellow",text:"** AFIB   HR 146"}},
+   say:"He's stable. Before you call, what do you get together?",ask:"Best bundle:",
+   choices:[
+    {t:"12-lead ECG, today's K and Mg, the MAR (anything missed?), I&O and pain/temp trend, the onset time",go:"n3",p:2,fb:"That's a call the provider can act on in one pass. You'll find two big clues."},
+    {t:"Oxygen at 6 L nasal cannula and a stat chest X-ray",go:"n3",p:-1,fb:"SpO2 93% on room air doesn't need 6 L, and imaging is the provider's call. Gather what explains the rhythm first."},
+    {t:"Give the PRN oxycodone in case pain is driving it",go:"n3",p:-1,fb:"Pain is 3/10 and he denies worse pain. Treat the cause you've confirmed, not a guess, and don't sedate a patient whose status is changing."}]},
+  n3:{mon:{rhythm:"afrvr",seed:43,hr:144,spo2:94,nbp:[110,70],nbpTime:"0318",rr:18,temp:37.3,alarm:{level:"yellow",text:"** AFIB   HR 144"}},
+   say:"12-lead: atrial fibrillation, rate 146, narrow QRS, no ST elevation. This morning's labs: K 3.3, Mg 1.6. On the MAR his home metoprolol succinate was held for surgery and never restarted. Onset 0308 per the monitor tech.",
+   ask:"Build your SBAR to the night hospitalist. Pick what you'll say.",kind:"sbar"},
+  n4:{kind:"mar",mon:{rhythm:"afrvr",seed:43,hr:144,spo2:94,nbp:[110,70],nbpTime:"0318",rr:18,temp:37.3,alarm:{level:"yellow",text:"** AFIB   HR 144"}},
+   say:"Orders entered: diltiazem 0.25 mg/kg IV once now over 2 min; potassium chloride 40 mEq PO now; magnesium sulfate 2 g IV over 2 h; restart metoprolol succinate 50 mg PO in the morning; repeat BMP and Mg at 0800. Call if HR > 110 after 15 min or SBP < 90.",
+   ask:"Give the diltiazem."},
+  n5:{mon:{rhythm:"afib",seed:47,hr:104,spo2:95,nbp:[104,64],nbpTime:"0328",rr:18,temp:37.3,alarm:null},
+   say:"0328, five minutes after the push. Rate 100s, BP 104/64. He says the fluttering is \"a lot better\".",
+   ask:"0340, fifteen minutes after: HR 108, BP 102/62. What now?",
+   choices:[
+    {t:"Rate still > 100 but under 110, BP above 90: keep tele, recheck at the interval, give the K and Mg, and ask the provider about anticoagulation since this is new AFib",go:"n6",p:2,fb:"Good. You're inside his call parameters, and new AFib raises the stroke question: he's on prophylactic enoxaparin, not treatment-dose anticoagulation. That's a provider decision you should prompt."},
+    {t:"Give a second diltiazem bolus, 0.35 mg/kg, to get him under 100",go:"n6",p:-2,fb:"No order for it, and his BP is drifting down. A second bolus is the provider's decision; the label also says to wait at least 15 min and judge response first."},
+    {t:"Rate's better, so nothing more tonight",go:"n6",p:-1,fb:"The rate improved, but the K and Mg still need replacing, the BP is drifting, and nobody has decided on anticoagulation yet."}]},
+  n6:{kind:"note",mon:{rhythm:"afib",seed:48,hr:98,spo2:95,nbp:[106,66],nbpTime:"0355",rr:16,temp:37.2,alarm:null},
+   say:"0355. HR 90s, BP 106/66, he's dozing. Magnesium running. Write your progress note (short SOAP).",
+   key:{S:"\"My heart's fluttering, a little short of breath\" at 0313; denies chest pain; reports improvement after diltiazem.",O:"0308 new AFib with RVR 140s–150s on tele; 12-lead AFib 146, narrow QRS, no ST elevation. BP 112/68 → 104/64 (5 min post) → 102/62 (15 min) → 106/66. SpO2 93–95% RA, RR 18–20, A&O×4, lungs clear. K 3.3, Mg 1.6. Home metoprolol not resumed post-op.",A:"New-onset AFib with RVR, hemodynamically stable, likely post-op with hypokalemia, hypomagnesemia and beta-blocker withdrawal as triggers; rate improving with diltiazem.",P:"Hospitalist notified 0320; diltiazem 21 mg IV given 0323; KCl 40 mEq PO and Mg 2 g IV given per order; continuous tele; BP/HR per order; BMP and Mg at 0800; metoprolol resumes AM; anticoagulation question raised with provider; call parameters HR > 110 or SBP < 90."}},
+  end:{kind:"end"}},
+ sbar:{items:[
+   {k:"id",s:"S",t:"Room 412, Dale Harmon, 71, post-op day 2 right total hip",need:1},
+   {k:"rhythm",s:"S",t:"New atrial fibrillation with RVR, rate 140s since 0308, confirmed on 12-lead, no ST changes",need:1},
+   {k:"bp",s:"S",t:"BP 112/68, SpO2 93% room air, RR 20, alert and oriented, palpitations and mild dyspnea, no chest pain",need:1},
+   {k:"hx",s:"B",t:"History of hypertension and OSA; home metoprolol succinate held for surgery and not resumed",need:1},
+   {k:"lytes",s:"B",t:"This morning K 3.3 and Mg 1.6, not yet replaced",need:1},
+   {k:"anticoag",s:"B",t:"On enoxaparin 30 mg every 12 h for DVT prophylaxis",need:0,good:1},
+   {k:"assess",s:"A",t:"I think he's stable now but the rate is too fast; I'm worried about it getting worse",need:1},
+   {k:"ask",s:"R",t:"Can I get rate-control orders, electrolyte replacement, and should his metoprolol restart? Call parameters, please",need:1},
+   {k:"diet",s:"B",t:"He ate 75% of his dinner",need:0},
+   {k:"dressing",s:"A",t:"Hip dressing is clean, dry and intact",need:0},
+   {k:"wife",s:"B",t:"His wife went home at 2100",need:0}],
+  asks:{id:"Who am I talking about? Room and name?",rhythm:"What exactly is the rhythm, and is it confirmed on a 12-lead?",bp:"What's his blood pressure? Is he symptomatic?",hx:"Any history? What does he take at home?",lytes:"What were his potassium and magnesium?",assess:"So what do you think is going on? Is he stable?",ask:"What do you need from me?"}},
+ debrief:["Unstable means the rhythm is causing hypotension, acutely altered mental status, signs of shock, ischemic chest discomfort or acute heart failure (AHA 2025). Rate alone isn't the test.","Three classic floor triggers stacked up: post-op stress, low K/Mg, and a home beta blocker that was never restarted (rebound sympathetic tone).","Diltiazem: 0.25 mg/kg actual body weight over 2 minutes. BP checked right before the push, then about every 5 minutes. Hold for SBP < 90.","New AFib = a stroke-risk conversation. Prophylactic enoxaparin isn't treatment-dose anticoagulation. Prompt the provider.","A good SBAR ends with a specific request and call-back parameters."],
+ links:[["Rhythm: AFib with RVR","floor/r/afrvr"],["Med card: Diltiazem IV","floor/med/dilt"],["Med card: Metoprolol","floor/med/metop"],["Med card: Potassium chloride","floor/med/kcl"],["Med card: Magnesium sulfate","floor/med/mag"]],
+ mar:{drug:"dilt",order:"Diltiazem 0.25 mg/kg IV once now, over 2 min",wt:84,
+  dose:{q:"Dose to draw up (84 kg):",opts:["21 mg","25 mg","8.4 mg","210 mg"],a:0,why:"0.25 mg/kg × 84 kg = 21 mg. (25 mg is roughly the 0.35 mg/kg second dose; 8.4 and 210 are decimal slips.)"},
+  rate:{q:"How do you give it?",opts:["IV push over 2 minutes","Rapid IV push, then flush","Mixed in 100 mL over 1 hour"],a:0,why:"The label bolus is given over 2 minutes."},
+  checks:[["band","Scan the patient's ID band"],["med","Scan the diltiazem vial"],["bp","Cycle a BP right now (last one was 0318)"]],bpNow:[110,70]}},
+];
+const fsById=id=>FS_SCEN.find(s=>s.id===id);

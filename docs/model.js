@@ -12,6 +12,7 @@ function validProfile(p){
  if(!p.read.every(id)||!p.bookmarks.every(id)||!Object.entries(p.notes).every(([k,v])=>id(k)&&typeof v==="string"&&v.length<=5000)||!p.attempts.every(a=>a&&id(a.id)&&Number.isInteger(a.q)&&a.q>=0&&a.q<4&&[-1,0,1,2].includes(a.choice)&&Number.isSafeInteger(a.t)&&a.t>0&&a.t<=NOW()+DAY))return false;
  if(p.last&&!id(p.last))return false;
  if(p.resus!==undefined&&typeof validResus==="function"&&!validResus(p.resus))return false;
+ if(p.floor!==undefined&&typeof validFloor==="function"&&!validFloor(p.floor))return false;
  let q=p.quiz;if(q){
  if(!["Lesson check","Mixed practice","Starting assessment","Review session","Transfer check","Pathway check","Clinical rounds"].includes(q.name)||!Array.isArray(q.items)||!q.items.length||q.items.length>24||!Number.isInteger(q.index)||q.index<0||q.index>q.items.length)return false;
  if(!q.items.every(i=>i&&id(i.id)&&Number.isInteger(i.q)&&i.q>=0&&i.q<4&&Array.isArray(i.order)&&i.order.length===3&&new Set(i.order).size===3&&i.order.every(x=>[0,1,2].includes(x))&&(i.answer===null||[-1,0,1,2].includes(i.answer))))return false;
